@@ -70,7 +70,8 @@ char *Util::StringToChar(String str) {
 }
 
 /**
- * @fn void Util::isConnected(char *base_url, char *device_id, time_t interval)
+ * @fn void Util::checkConnection(char *base_url, char *device_id, time_t
+ * interval)
  * @brief Check Device's connection
  * @param base_url url
  * @param device_id device id
@@ -78,7 +79,7 @@ char *Util::StringToChar(String str) {
  * @date 2019-08-27
  * @author Janghun Lee (jhlee@sangsang.farm)
  */
-void Util::isConnected(char *base_url, char *device_id, time_t interval) {
+void Util::checkConnection(char *base_url, char *device_id, time_t interval) {
   _current_time = time(nullptr);
   if (_last_connection_check_time == -1) {
     _last_connection_check_time = _current_time;
@@ -123,7 +124,6 @@ void Util::isConnected(char *base_url, char *device_id, time_t interval) {
   if (!ret && updated_at != NULL) {
     int y, M, d, h, m;
     float s;
-    println(updated_at);
     sscanf(updated_at, "%d-%d-%dT%d:%d:%fZ", &y, &M, &d, &h, &m, &s);
     tm t;
     t.tm_year = y - 1900;  // Year since 1900
@@ -134,7 +134,7 @@ void Util::isConnected(char *base_url, char *device_id, time_t interval) {
     t.tm_sec = (int)s;     // 0-61 (0-60 in C++11)
     _disconnect_time = mktime(&t);
     if (_disconnect_time > 0 && _current_time - _disconnect_time > 120) {
-      print(F("[Util] Device is disconnected and will reboot"));
+      println(F("[Util] Device is disconnected and will reboot"));
       ESP.restart();
     }
   } else

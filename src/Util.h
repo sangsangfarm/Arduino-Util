@@ -45,7 +45,7 @@ class Util {
   void beginSerial(int speed = 115200);
   void syncTime(int timezone = 0, int try_num = 10);
   char *StringToChar(String str);
-  void isConnected(char *base_url, char *device_id, time_t interval = 60);
+  void checkConnection(char *base_url, char *device_id, time_t interval = 60);
 };
 
 #endif /*UTIL_H_*/
