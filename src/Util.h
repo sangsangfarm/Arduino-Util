@@ -1,6 +1,6 @@
 /**
  * @file Util.h
- * @brief 자주 쓰는 기본 아두이노 기능
+ * @brief Arduino Utility
  * @date 2019-08-27
  * @author Janghun Lee (jhlee@sangsang.farm)
  */
@@ -9,6 +9,8 @@
 #define UTIL_H_
 
 #include <Arduino.h>
+#include <ArduinoJson.h>
+#include <HTTPClient.h>
 #include <time.h>
 
 // Debug
@@ -26,17 +28,24 @@
 #define printf(...)
 #define println(...)
 #endif
+#define TIMEOUT 1000
+
 /**
- * @brief 자주 쓰는 기본 아두이노 기능
+ * @brief Arduino Utility
  * @date 2019-08-27
  * @author Janghun Lee (jhlee@sangsang.farm)
  */
 class Util {
  private:
+  time_t _disconnect_time = -1;
+  time_t _current_time = -1;
+  time_t _last_connection_check_time = -1;
+
  public:
   void beginSerial(int speed = 115200);
   void syncTime(int timezone = 0, int try_num = 10);
   char *StringToChar(String str);
+  void isConnected(char *base_url, char *device_id, time_t interval = 60);
 };
 
 #endif /*UTIL_H_*/

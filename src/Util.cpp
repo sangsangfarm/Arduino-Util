@@ -1,6 +1,6 @@
 /**
  * @file Util.cpp
- * @brief 자주 쓰는 기본 아두이노 기능
+ * @brief Arduino Utility
  * @date 2019-08-27
  * @author Janghun Lee (jhlee@sangsang.farm)
  */
@@ -9,8 +9,8 @@
 
 /**
  * @fn void Util::beginSerial(int speed)
- * @brief 시리얼 통신 시작
- * @param speed 모니터링 속도
+ * @brief Begin serial communication
+ * @param speed Monitoring speed
  * @date 2019-08-27
  * @author Janghun Lee (jhlee@sangsang.farm)
  */
@@ -23,21 +23,21 @@ void Util::beginSerial(int speed) {
 
 /**
  * @fn void Util::syncTime(int timezone, int try_num)
- * @brief 시간 동기화. 시도횟수 초과시 리부팅됨
- * @param timezone 타임존
- * @param try_num 시간 초기화 시도 횟수
+ * @brief Synchronize time and will reboot when the number of attempts exceeds
+ * @param timezone Time zone
+ * @param try_num Time synchronization attempts
  * @date 2019-08-27
  * @author Janghun Lee (jhlee@sangsang.farm)
  */
 void Util::syncTime(int timezone, int try_num) {
   time_t epoch_time;
   configTime(timezone, 0, "pool.ntp.org", "time.nist.gov");
-  print(F("[Util] 시간 설정 중"));
+  print(F("[Util] Synchronize time.."));
   int count = 0;
   while (true) {
     count++;
     if (count > try_num) {
-      println("[Util] 시간 조정 실패. 디바이스 재부팅.");
+      println("[Util] Failed to Synchronize. Device will reboot.");
       ESP.restart();
     }
     epoch_time = time(nullptr);
@@ -46,8 +46,8 @@ void Util::syncTime(int timezone, int try_num) {
       print(F("."));
       delay(2000);
     } else {
-      printf("\n[Util] Fetched NTP epoch time은: %lu.\r\n", epoch_time);
-      printf("[Util] 현재 시간은 : %s.\r\n", ctime(&epoch_time));
+      printf("\n[Util] Fetched NTP epoch time : %lu.\r\n", epoch_time);
+      printf("[Util] Current time : %s.\r\n", ctime(&epoch_time));
       break;
     }
   }
@@ -55,12 +55,11 @@ void Util::syncTime(int timezone, int try_num) {
 
 /**
  * @fn char *Util::StringToChar(String str)
- * @brief String변수 char*로 변환
- * @param str char*로 변환할 String 변수
+ * @brief Convert String to char
+ * @param str String variable
  * @date 2019-08-27
  * @author Janghun Lee (jhlee@sangsang.farm)
  */
-// String 변수 char*로 변환
 char *Util::StringToChar(String str) {
   char *ret = (char *)malloc(str.length() + 1);
   for (int i = 0; i < str.length(); i++) {
@@ -68,4 +67,76 @@ char *Util::StringToChar(String str) {
   }
   ret[str.length()] = '\0';
   return ret;
+}
+
+/**
+ * @fn void Util::isConnected(char *base_url, char *device_id, time_t interval)
+ * @brief Check Device's connection
+ * @param base_url url
+ * @param device_id device id
+ * @param interval The time interval
+ * @date 2019-08-27
+ * @author Janghun Lee (jhlee@sangsang.farm)
+ */
+void Util::isConnected(char *base_url, char *device_id, time_t interval) {
+  _current_time = time(nullptr);
+  if (_last_connection_check_time == -1) {
+    _last_connection_check_time = _current_time;
+    return;
+  }
+  if (_current_time - _last_connection_check_time < interval ||
+      _current_time == _last_connection_check_time) {
+    return;
+  }
+  _last_connection_check_time = _current_time;
+  HTTPClient http;
+  String url = base_url;
+  url += device_id;
+  http.begin(url);
+  http.addHeader("Content-Type", "application/json");
+  http.setConnectTimeout(TIMEOUT);
+  println(url);
+  int http_code = http.GET();
+  String payload = http.getString();
+  http.end();
+
+  DynamicJsonDocument root(4096);
+  DeserializationError error = deserializeJson(root, payload);
+  bool ret = true;
+  const char *updated_at;
+  if (error) {
+    printf("Parse %s failed.\r\n", payload.c_str());
+  }
+  if (!root["Connection"].isNull()) {
+    ret = root["Connection"];
+  }
+  if (!root["connection"].isNull()) {
+    ret = root["connection"];
+  }
+  if (!root["UpdatedAt"].isNull()) {
+    updated_at = root["UpdatedAt"];
+  }
+  if (!root["updatedAt"].isNull()) {
+    updated_at = root["updatedAt"];
+  }
+  root.clear();
+  if (!ret && updated_at != NULL) {
+    int y, M, d, h, m;
+    float s;
+    println(updated_at);
+    sscanf(updated_at, "%d-%d-%dT%d:%d:%fZ", &y, &M, &d, &h, &m, &s);
+    tm t;
+    t.tm_year = y - 1900;  // Year since 1900
+    t.tm_mon = M - 1;      // 0-11
+    t.tm_mday = d;         // 1-31
+    t.tm_hour = h;         // 0-23
+    t.tm_min = m;          // 0-59
+    t.tm_sec = (int)s;     // 0-61 (0-60 in C++11)
+    _disconnect_time = mktime(&t);
+    if (_disconnect_time > 0 && _current_time - _disconnect_time > 120) {
+      print(F("[Util] Device is disconnected and will reboot"));
+      ESP.restart();
+    }
+  } else
+    _disconnect_time = -1;
 }
