@@ -103,7 +103,7 @@ void Util::checkConnection(char *base_url, char *device_id, time_t interval) {
     } else {
       _num_get_connection_fail++;
       if (_num_get_connection_fail > 10) {
-        ESP.restart()
+        ESP.restart();
       }
       return;
     }
