@@ -28,7 +28,7 @@
 #define printf(...)
 #define println(...)
 #endif
-#define TIMEOUT 1000
+#define TIMEOUT 5000
 
 /**
  * @brief Arduino Utility
