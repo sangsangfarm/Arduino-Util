@@ -85,58 +85,65 @@ void Util::checkConnection(char *base_url, char *device_id, time_t interval) {
     _last_connection_check_time = _current_time;
     return;
   }
-  if (_current_time - _last_connection_check_time < interval ||
-      _current_time == _last_connection_check_time) {
-    return;
-  }
-  _last_connection_check_time = _current_time;
-  HTTPClient http;
-  String url = base_url;
-  url += device_id;
-  http.begin(url);
-  http.addHeader("Content-Type", "application/json");
-  http.setConnectTimeout(TIMEOUT);
-  println(url);
-  int http_code = http.GET();
-  String payload = http.getString();
-  http.end();
-
-  DynamicJsonDocument root(4096);
-  DeserializationError error = deserializeJson(root, payload);
-  bool ret = true;
-  const char *updated_at;
-  if (error) {
-    printf("Parse %s failed.\r\n", payload.c_str());
-  }
-  if (!root["Connection"].isNull()) {
-    ret = root["Connection"];
-  }
-  if (!root["connection"].isNull()) {
-    ret = root["connection"];
-  }
-  if (!root["UpdatedAt"].isNull()) {
-    updated_at = root["UpdatedAt"];
-  }
-  if (!root["updatedAt"].isNull()) {
-    updated_at = root["updatedAt"];
-  }
-  root.clear();
-  if (!ret && updated_at != NULL) {
-    int y, M, d, h, m;
-    float s;
-    sscanf(updated_at, "%d-%d-%dT%d:%d:%fZ", &y, &M, &d, &h, &m, &s);
-    tm t;
-    t.tm_year = y - 1900;  // Year since 1900
-    t.tm_mon = M - 1;      // 0-11
-    t.tm_mday = d;         // 1-31
-    t.tm_hour = h;         // 0-23
-    t.tm_min = m;          // 0-59
-    t.tm_sec = (int)s;     // 0-61 (0-60 in C++11)
-    _disconnect_time = mktime(&t);
-    if (_disconnect_time > 0 && _current_time - _disconnect_time > 120) {
-      println(F("[Util] Device is disconnected and will reboot"));
-      ESP.restart();
+  if (_current_time - _last_connection_check_time >= interval &&
+      _current_time != _last_connection_check_time) {
+    HTTPClient http;
+    String url = base_url;
+    url += device_id;
+    http.begin(url);
+    http.addHeader("Content-Type", "application/json");
+    http.setConnectTimeout(TIMEOUT);
+    println(url);
+    int http_code = http.GET();
+    String payload = http.getString();
+    http.end();
+    if (200 <= http_code && http_code < 300) {
+      _last_connection_check_time = _current_time;
+      _num_get_connection_fail = 0;
+    } else {
+      _num_get_connection_fail++;
+      if (_num_get_connection_fail > 10) {
+        ESP.restart()
+      }
+      return;
     }
-  } else
-    _disconnect_time = -1;
+    DynamicJsonDocument root(4096);
+    DeserializationError error = deserializeJson(root, payload);
+    bool ret = true;
+    const char *updated_at;
+    if (error) {
+      printf("Parse %s failed.\r\n", payload.c_str());
+    }
+    if (!root["Connection"].isNull()) {
+      ret = root["Connection"];
+    }
+    if (!root["connection"].isNull()) {
+      ret = root["connection"];
+    }
+    if (!root["UpdatedAt"].isNull()) {
+      updated_at = root["UpdatedAt"];
+    }
+    if (!root["updatedAt"].isNull()) {
+      updated_at = root["updatedAt"];
+    }
+    root.clear();
+    if (!ret && updated_at != NULL) {
+      int y, M, d, h, m;
+      float s;
+      sscanf(updated_at, "%d-%d-%dT%d:%d:%fZ", &y, &M, &d, &h, &m, &s);
+      tm t;
+      t.tm_year = y - 1900;  // Year since 1900
+      t.tm_mon = M - 1;      // 0-11
+      t.tm_mday = d;         // 1-31
+      t.tm_hour = h;         // 0-23
+      t.tm_min = m;          // 0-59
+      t.tm_sec = (int)s;     // 0-61 (0-60 in C++11)
+      _disconnect_time = mktime(&t);
+      if (_disconnect_time > 0 && _current_time - _disconnect_time > 120) {
+        println(F("[Util] Device is disconnected and will reboot"));
+        ESP.restart();
+      }
+    } else
+      _disconnect_time = -1;
+  }
 }

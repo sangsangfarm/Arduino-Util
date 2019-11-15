@@ -40,6 +40,7 @@ class Util {
   time_t _disconnect_time = -1;
   time_t _current_time = -1;
   time_t _last_connection_check_time = -1;
+  int _num_get_connection_fail = 0;
 
  public:
   void beginSerial(int speed = 115200);
